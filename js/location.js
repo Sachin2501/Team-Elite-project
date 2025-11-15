@@ -1,6 +1,8 @@
-// Location Sharing Functionality
+// Live Location System with Google Maps
 class LocationSystem {
     constructor() {
+        this.map = null;
+        this.marker = null;
         this.isSharing = false;
         this.locationInterval = null;
         this.currentLocation = null;
@@ -8,38 +10,123 @@ class LocationSystem {
     }
 
     init() {
-        this.getLocationBtn = document.getElementById('getLocationBtn');
-        this.shareLocationBtn = document.getElementById('shareLocationBtn');
-        this.stopSharingBtn = document.getElementById('stopSharingBtn');
-        this.locationStatus = document.getElementById('locationStatus');
-        this.locationStatusText = document.getElementById('locationStatusText');
-        this.mapPlaceholder = document.getElementById('mapPlaceholder');
-
+        console.log('🗺️ Initializing Location System...');
+        this.loadGoogleMaps();
         this.bindEvents();
     }
 
-    bindEvents() {
-        if (this.getLocationBtn) {
-            this.getLocationBtn.addEventListener('click', () => this.getCurrentLocation());
-        }
-
-        if (this.shareLocationBtn) {
-            this.shareLocationBtn.addEventListener('click', () => this.startSharing());
-        }
-
-        if (this.stopSharingBtn) {
-            this.stopSharingBtn.addEventListener('click', () => this.stopSharing());
+    loadGoogleMaps() {
+        // Add Google Maps script dynamically
+        if (!document.querySelector('#google-maps-script')) {
+            const script = document.createElement('script');
+            script.id = 'google-maps-script';
+            script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap`;
+            script.async = true;
+            script.defer = true;
+            document.head.appendChild(script);
+            
+            // Global init function for Google Maps callback
+            window.initMap = () => {
+                console.log('✅ Google Maps loaded');
+                this.initializeMap();
+            };
+        } else {
+            this.initializeMap();
         }
     }
 
-    async getCurrentLocation() {
-        if (!navigator.geolocation) {
-            alert('Geolocation is not supported by this browser.');
-            return;
-        }
+    initializeMap() {
+        // Default center (New Delhi)
+        const defaultCenter = { lat: 28.6139, lng: 77.2090 };
+        
+        const mapOptions = {
+            zoom: 15,
+            center: defaultCenter,
+            mapTypeControl: true,
+            streetViewControl: true,
+            fullscreenControl: true,
+            styles: [
+                {
+                    "featureType": "administrative",
+                    "elementType": "geometry",
+                    "stylers": [{ "visibility": "off" }]
+                },
+                {
+                    "featureType": "poi",
+                    "stylers": [{ "visibility": "simplified" }]
+                },
+                {
+                    "featureType": "road",
+                    "elementType": "labels.icon",
+                    "stylers": [{ "visibility": "off" }]
+                },
+                {
+                    "featureType": "transit",
+                    "stylers": [{ "visibility": "simplified" }]
+                }
+            ]
+        };
 
+        this.map = new google.maps.Map(document.getElementById('locationMap'), mapOptions);
+        
+        // Add custom marker
+        this.marker = new google.maps.Marker({
+            position: defaultCenter,
+            map: this.map,
+            title: 'Your Location',
+            icon: {
+                url: 'data:image/svg+xml;base64,' + btoa(`
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="20" cy="20" r="18" fill="#e63946" stroke="white" stroke-width="3"/>
+                        <circle cx="20" cy="20" r="8" fill="white"/>
+                        <circle cx="20" cy="20" r="4" fill="#e63946"/>
+                    </svg>
+                `),
+                scaledSize: new google.maps.Size(40, 40),
+                anchor: new google.maps.Point(20, 20)
+            },
+            animation: google.maps.Animation.DROP
+        });
+
+        // Add circle for accuracy
+        this.circle = new google.maps.Circle({
+            map: this.map,
+            radius: 0,
+            fillColor: '#e63946',
+            fillOpacity: 0.2,
+            strokeColor: '#e63946',
+            strokeOpacity: 0.8,
+            strokeWeight: 2
+        });
+
+        console.log('✅ Map initialized');
+    }
+
+    bindEvents() {
+        // Location control buttons
+        document.getElementById('getLocationBtn').addEventListener('click', () => this.getCurrentLocation());
+        document.getElementById('shareLocationBtn').addEventListener('click', () => this.startSharing());
+        document.getElementById('stopSharingBtn').addEventListener('click', () => this.stopSharing());
+        document.getElementById('refreshLocationBtn').addEventListener('click', () => this.refreshLocation());
+
+        // Close sharing when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (this.isSharing) {
+                this.stopSharing();
+            }
+        });
+    }
+
+    async getCurrentLocation() {
         try {
+            this.showLoadingState();
+            
             const position = await new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation is not supported'));
+                    return;
+                }
+
                 navigator.geolocation.getCurrentPosition(resolve, reject, {
                     enableHighAccuracy: true,
                     timeout: 10000,
@@ -47,41 +134,60 @@ class LocationSystem {
                 });
             });
 
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            
-            this.currentLocation = { lat, lng };
-            this.updateLocationDisplay(lat, lng);
+            this.currentLocation = {
+                lat: position.coords.latitude,
+                lng: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                timestamp: new Date().toISOString()
+            };
+
+            this.updateMap(this.currentLocation);
+            this.updateLocationDetails(this.currentLocation);
             this.enableSharing();
+            this.showSuccessState();
+
+            console.log('📍 Location acquired:', this.currentLocation);
 
         } catch (error) {
-            console.error('Geolocation error:', error);
-            alert('Unable to retrieve your location. Please ensure location services are enabled.');
+            console.error('❌ Location error:', error);
+            this.showErrorState(error.message);
         }
     }
 
-    updateLocationDisplay(lat, lng) {
-        if (this.mapPlaceholder) {
-            this.mapPlaceholder.innerHTML = `
-                <i class="fas fa-map-marker-alt" style="color: var(--primary); font-size: 2rem; margin-bottom: 10px;"></i>
-                <p>Location acquired</p>
-                <p style="font-size: 0.9rem; margin-top: 5px;">Lat: ${lat.toFixed(6)}<br>Lng: ${lng.toFixed(6)}</p>
-            `;
-        }
+    updateMap(location) {
+        if (!this.map) return;
+
+        const latLng = new google.maps.LatLng(location.lat, location.lng);
+        
+        // Update marker position
+        this.marker.setPosition(latLng);
+        
+        // Update circle for accuracy
+        this.circle.setCenter(latLng);
+        this.circle.setRadius(location.accuracy);
+        
+        // Center map on location
+        this.map.setCenter(latLng);
+        this.map.setZoom(16);
+
+        // Add bounce animation
+        this.marker.setAnimation(google.maps.Animation.BOUNCE);
+        setTimeout(() => {
+            this.marker.setAnimation(null);
+        }, 2000);
+    }
+
+    updateLocationDetails(location) {
+        document.getElementById('latitudeValue').textContent = location.lat.toFixed(6);
+        document.getElementById('longitudeValue').textContent = location.lng.toFixed(6);
+        document.getElementById('accuracyValue').textContent = `${Math.round(location.accuracy)} meters`;
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
     }
 
     enableSharing() {
-        if (this.shareLocationBtn) {
-            this.shareLocationBtn.disabled = false;
-        }
-
-        if (this.locationStatus) {
-            this.locationStatus.className = 'status-indicator active';
-        }
-
-        if (this.locationStatusText) {
-            this.locationStatusText.textContent = 'Location ready to share';
-        }
+        document.getElementById('shareLocationBtn').disabled = false;
+        document.getElementById('locationStatus').className = 'status-indicator ready';
+        document.getElementById('locationStatusText').textContent = 'Location ready to share';
     }
 
     startSharing() {
@@ -90,56 +196,35 @@ class LocationSystem {
         this.isSharing = true;
         
         // Update UI
-        if (this.shareLocationBtn) this.shareLocationBtn.disabled = true;
-        if (this.stopSharingBtn) this.stopSharingBtn.disabled = false;
-        if (this.getLocationBtn) this.getLocationBtn.disabled = true;
+        document.getElementById('shareLocationBtn').disabled = true;
+        document.getElementById('stopSharingBtn').disabled = false;
+        document.getElementById('getLocationBtn').disabled = true;
         
-        if (this.locationStatusText) {
-            this.locationStatusText.textContent = 'Sharing location with emergency contacts';
-        }
+        document.getElementById('locationStatus').className = 'status-indicator active';
+        document.getElementById('locationStatusText').textContent = 'Sharing location with emergency contacts';
 
-        // Start sharing location periodically
+        // Start sharing interval
         this.locationInterval = setInterval(() => {
             this.shareLocationUpdate();
         }, 5000);
 
+        // Show notification
+        this.showNotification('Location sharing started', 'success');
+        
         // Log the start of location sharing
-        this.logLocationSharingStart();
-        
-        alert('Your location is now being shared with emergency contacts and campus security.');
-    }
-
-    shareLocationUpdate() {
-        if (!this.currentLocation) return;
-
-        // In a real app, this would send location updates to the server
-        const locationData = {
-            timestamp: new Date().toISOString(),
-            location: this.currentLocation,
-            type: 'LOCATION_UPDATE'
-        };
-
-        console.log('Location shared:', locationData);
-        
-        // Simulate sending to backend
-        // makeAPICall('/api/location-update', locationData);
+        this.logLocationSharing('started');
     }
 
     stopSharing() {
         this.isSharing = false;
         
         // Update UI
-        if (this.shareLocationBtn) this.shareLocationBtn.disabled = false;
-        if (this.stopSharingBtn) this.stopSharingBtn.disabled = true;
-        if (this.getLocationBtn) this.getLocationBtn.disabled = false;
+        document.getElementById('shareLocationBtn').disabled = false;
+        document.getElementById('stopSharingBtn').disabled = true;
+        document.getElementById('getLocationBtn').disabled = false;
         
-        if (this.locationStatus) {
-            this.locationStatus.className = 'status-indicator';
-        }
-        
-        if (this.locationStatusText) {
-            this.locationStatusText.textContent = 'Location sharing stopped';
-        }
+        document.getElementById('locationStatus').className = 'status-indicator';
+        document.getElementById('locationStatusText').textContent = 'Location sharing stopped';
 
         // Clear interval
         if (this.locationInterval) {
@@ -147,33 +232,82 @@ class LocationSystem {
             this.locationInterval = null;
         }
 
-        // Log the stop of location sharing
-        this.logLocationSharingStop();
+        // Show notification
+        this.showNotification('Location sharing stopped', 'info');
         
-        alert('Location sharing has been stopped.');
+        // Log the stop of location sharing
+        this.logLocationSharing('stopped');
     }
 
-    logLocationSharingStart() {
+    shareLocationUpdate() {
+        if (!this.currentLocation) return;
+
+        // Simulate sending to backend
+        const locationData = {
+            timestamp: new Date().toISOString(),
+            location: this.currentLocation,
+            type: 'LOCATION_UPDATE'
+        };
+
+        console.log('📍 Location shared:', locationData);
+        
+        // Update last updated time
+        document.getElementById('lastUpdated').textContent = new Date().toLocaleTimeString();
+        
+        // In real app, send to backend:
+        // window.safeCampusAPI.updateLocation(this.currentLocation);
+    }
+
+    refreshLocation() {
+        if (this.isSharing) {
+            this.getCurrentLocation();
+        } else {
+            this.showNotification('Get location first before refreshing', 'warning');
+        }
+    }
+
+    showLoadingState() {
+        document.getElementById('locationStatus').className = 'status-indicator loading';
+        document.getElementById('locationStatusText').textContent = 'Getting your location...';
+        document.getElementById('getLocationBtn').disabled = true;
+        document.getElementById('getLocationBtn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Getting Location...';
+    }
+
+    showSuccessState() {
+        document.getElementById('getLocationBtn').disabled = false;
+        document.getElementById('getLocationBtn').innerHTML = '<i class="fas fa-location-arrow"></i> Get My Location';
+    }
+
+    showErrorState(message) {
+        document.getElementById('locationStatus').className = 'status-indicator error';
+        document.getElementById('locationStatusText').textContent = `Error: ${message}`;
+        document.getElementById('getLocationBtn').disabled = false;
+        document.getElementById('getLocationBtn').innerHTML = '<i class="fas fa-location-arrow"></i> Get My Location';
+        
+        this.showNotification(`Location error: ${message}`, 'error');
+    }
+
+    showNotification(message, type = 'info') {
+        if (window.safeCampusAPI && window.safeCampusAPI.showNotification) {
+            window.safeCampusAPI.showNotification(message, type);
+        } else {
+            alert(`${type.toUpperCase()}: ${message}`);
+        }
+    }
+
+    logLocationSharing(action) {
         const eventData = {
-            type: 'LOCATION_SHARING_STARTED',
+            type: `LOCATION_SHARING_${action.toUpperCase()}`,
             location: this.currentLocation,
             timestamp: new Date().toISOString()
         };
         
-        logEmergencyEvent(eventData);
-    }
-
-    logLocationSharingStop() {
-        const eventData = {
-            type: 'LOCATION_SHARING_STOPPED',
-            timestamp: new Date().toISOString()
-        };
-        
-        logEmergencyEvent(eventData);
+        console.log(`📍 Location Sharing ${action}:`, eventData);
     }
 }
 
-// Initialize location system when DOM is loaded
+// Initialize location system
 document.addEventListener('DOMContentLoaded', function() {
-    new LocationSystem();
+    console.log('🚀 Initializing Location System...');
+    window.locationSystem = new LocationSystem();
 });

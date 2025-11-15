@@ -141,30 +141,55 @@
         </div>
     </div>
 
-    <!-- Location Sharing Section -->
+        <!-- Location Sharing Section -->
     <section class="location-section" id="location">
         <div class="container">
             <div class="section-title">
-                <h2>Location Sharing</h2>
-                <p>Share your location with emergency contacts and authorities during critical situations</p>
+                <h2>Live Location Sharing</h2>
+                <p>Share your real-time location with emergency contacts and authorities</p>
             </div>
             <div class="location-container">
                 <div class="location-map" id="locationMap">
-                    <div id="mapPlaceholder">
-                        <i class="fas fa-map-marked-alt" style="font-size: 3rem; margin-bottom: 15px;"></i>
-                        <p>Your location will appear here</p>
+                    <div id="mapLoading" class="map-loading">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <p>Loading live map...</p>
                     </div>
+                    <!-- Google Map will be loaded here -->
                 </div>
                 <div class="location-controls">
                     <button class="btn btn-primary" id="getLocationBtn">
                         <i class="fas fa-location-arrow"></i> Get My Location
                     </button>
                     <button class="btn btn-outline" id="shareLocationBtn" disabled>
-                        <i class="fas fa-share-alt"></i> Share Location
+                        <i class="fas fa-share-alt"></i> Start Sharing
                     </button>
                     <button class="btn btn-outline" id="stopSharingBtn" disabled>
                         <i class="fas fa-stop-circle"></i> Stop Sharing
                     </button>
+                    <button class="btn btn-outline" id="refreshLocationBtn">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div class="location-info">
+                    <div class="location-details">
+                        <h4><i class="fas fa-info-circle"></i> Location Details</h4>
+                        <div class="detail-item">
+                            <span class="label">Latitude:</span>
+                            <span id="latitudeValue">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Longitude:</span>
+                            <span id="longitudeValue">--</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Accuracy:</span>
+                            <span id="accuracyValue">-- meters</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="label">Last Updated:</span>
+                            <span id="lastUpdated">--</span>
+                        </div>
+                    </div>
                 </div>
                 <div class="location-status">
                     <div class="status-indicator" id="locationStatus"></div>
