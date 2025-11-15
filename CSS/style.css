@@ -5,6 +5,7 @@
 @import url('components/contacts.css');
 @import url('components/alerts.css');
 @import url('components/auth.css');
+@import url('components/profile.css');
 
 * {
     margin: 0;

@@ -2,10 +2,10 @@
 class ContactSystem {
     constructor() {
         this.contacts = {
-            'Campus Security': { number: '(555) 123-4567', type: 'security' },
-            'Medical Emergency': { number: '(555) 123-4568', type: 'medical' },
-            'Harassment Help': { number: '(555) 123-4569', type: 'support' },
-            'Fire Department': { number: '911', type: 'emergency' }
+            'Campus Security': { number: '9123017777', type: 'security' },
+            'Medical Emergency': { number: '112', type: 'medical' },
+            'Harassment Help': { number: '112', type: 'support' },
+            'Fire Department': { number: '112', type: 'emergency' }
         };
         this.init();
     }

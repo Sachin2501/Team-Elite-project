@@ -28,6 +28,13 @@ class AuthSystem {
                 password: this.hashPassword('password123'),
                 role: 'student',
                 memberSince: '2024-01-15',
+                emergencyContacts: [
+                    {
+                        name: 'Parent',
+                        phone: '+1 (555) 111-2222',
+                        relationship: 'parent'
+                    }
+                ],
                 stats: {
                     sosCount: 0,
                     alertsSent: 0,
@@ -42,6 +49,13 @@ class AuthSystem {
                 password: this.hashPassword('secure123'),
                 role: 'security',
                 memberSince: '2024-01-10',
+                emergencyContacts: [
+                    {
+                        name: 'Security Head',
+                        phone: '+1 (555) 333-4444',
+                        relationship: 'colleague'
+                    }
+                ],
                 stats: {
                     sosCount: 12,
                     alertsSent: 8,
@@ -91,29 +105,57 @@ class AuthSystem {
             if (passwordInput) {
                 passwordInput.addEventListener('input', (e) => this.checkPasswordStrength(e.target.value));
             }
+
+            // Confirm password validation
+            const confirmPasswordInput = document.getElementById('signupConfirmPassword');
+            if (confirmPasswordInput) {
+                confirmPasswordInput.addEventListener('input', () => this.validatePasswordMatch());
+            }
         }
 
         // Modal switching
-        const switchToSignup = document.getElementById('switchToSignup');
-        if (switchToSignup) {
-            switchToSignup.addEventListener('click', () => this.switchToSignup());
-        }
+        document.addEventListener('click', (e) => {
+            if (e.target.id === 'switchToSignup' || e.target.closest('#switchToSignup')) {
+                e.preventDefault();
+                this.switchToSignup();
+            }
+            
+            if (e.target.id === 'switchToLogin' || e.target.closest('#switchToLogin')) {
+                e.preventDefault();
+                this.switchToLogin();
+            }
+            
+            if (e.target.id === 'closeLogin' || e.target.closest('#closeLogin')) {
+                e.preventDefault();
+                this.closeLoginModal();
+            }
+            
+            if (e.target.id === 'closeSignup' || e.target.closest('#closeSignup')) {
+                e.preventDefault();
+                this.closeSignupModal();
+            }
 
-        const switchToLogin = document.getElementById('switchToLogin');
-        if (switchToLogin) {
-            switchToLogin.addEventListener('click', () => this.switchToLogin());
-        }
+            // Profile modal close buttons
+            if (e.target.id === 'closeProfileModal' || e.target.closest('#closeProfileModal')) {
+                e.preventDefault();
+                this.closeProfileModal();
+            }
 
-        // Modal closing
-        const closeLogin = document.getElementById('closeLogin');
-        if (closeLogin) {
-            closeLogin.addEventListener('click', () => this.closeLoginModal());
-        }
+            if (e.target.id === 'cancelEditProfile' || e.target.closest('#cancelEditProfile')) {
+                e.preventDefault();
+                this.closeEditProfileModal();
+            }
 
-        const closeSignup = document.getElementById('closeSignup');
-        if (closeSignup) {
-            closeSignup.addEventListener('click', () => this.closeSignupModal());
-        }
+            if (e.target.id === 'closeContactsModal' || e.target.closest('#closeContactsModal')) {
+                e.preventDefault();
+                this.closeManageContactsModal();
+            }
+            
+            // Close modals when clicking outside
+            if (e.target.classList.contains('modal')) {
+                this.closeAllModals();
+            }
+        });
 
         // Logout
         const logoutBtn = document.getElementById('logoutBtn');
@@ -122,9 +164,21 @@ class AuthSystem {
         }
 
         // Profile editing
-        const editProfile = document.getElementById('editProfile');
-        if (editProfile) {
-            editProfile.addEventListener('click', () => this.editProfile());
+        const editProfileBtn = document.getElementById('editProfileBtn');
+        if (editProfileBtn) {
+            editProfileBtn.addEventListener('click', () => this.openEditProfileModal());
+        }
+
+        // Refresh profile
+        const refreshProfileBtn = document.getElementById('refreshProfileBtn');
+        if (refreshProfileBtn) {
+            refreshProfileBtn.addEventListener('click', () => this.refreshProfileData());
+        }
+
+        // Manage contacts
+        const manageContactsBtn = document.getElementById('manageContactsBtn');
+        if (manageContactsBtn) {
+            manageContactsBtn.addEventListener('click', () => this.openManageContactsModal());
         }
 
         // User avatar click
@@ -133,6 +187,18 @@ class AuthSystem {
                 this.showProfileModal();
             }
         });
+
+        // Edit profile form submission
+        const editProfileForm = document.getElementById('editProfileForm');
+        if (editProfileForm) {
+            editProfileForm.addEventListener('submit', (e) => this.handleEditProfile(e));
+        }
+
+        // Add contact form submission
+        const addContactForm = document.getElementById('addContactForm');
+        if (addContactForm) {
+            addContactForm.addEventListener('submit', (e) => this.handleAddContact(e));
+        }
     }
 
     async handleLogin(e) {
@@ -243,6 +309,7 @@ class AuthSystem {
                     password: this.hashPassword(userData.password),
                     role: userData.role,
                     memberSince: new Date().toISOString().split('T')[0],
+                    emergencyContacts: [],
                     stats: {
                         sosCount: 0,
                         alertsSent: 0,
@@ -276,7 +343,7 @@ class AuthSystem {
         localStorage.removeItem('safecampus_session');
         this.showNotification('Logged out successfully', 'success');
         this.updateUI();
-        this.closeProfileModal();
+        this.closeAllModals();
     }
 
     checkPasswordStrength(password) {
@@ -313,39 +380,83 @@ class AuthSystem {
         }
     }
 
+    validatePasswordMatch() {
+        const password = document.getElementById('signupPassword').value;
+        const confirmPassword = document.getElementById('signupConfirmPassword').value;
+        const confirmInput = document.getElementById('signupConfirmPassword');
+        
+        if (confirmPassword && password !== confirmPassword) {
+            confirmInput.style.borderColor = '#e63946';
+            confirmInput.title = 'Passwords do not match';
+        } else {
+            confirmInput.style.borderColor = '#ddd';
+            confirmInput.title = '';
+        }
+    }
+
     switchToSignup() {
         this.closeLoginModal();
-        this.openSignupModal();
+        setTimeout(() => {
+            this.openSignupModal();
+        }, 300);
     }
 
     switchToLogin() {
         this.closeSignupModal();
-        this.openLoginModal();
+        setTimeout(() => {
+            this.openLoginModal();
+        }, 300);
     }
 
     openLoginModal() {
-        document.getElementById('loginModal').style.display = 'flex';
-        document.getElementById('loginEmail').focus();
+        const loginModal = document.getElementById('loginModal');
+        if (loginModal) {
+            loginModal.style.display = 'flex';
+            document.getElementById('loginForm').reset();
+            setTimeout(() => {
+                const emailInput = document.getElementById('loginEmail');
+                if (emailInput) emailInput.focus();
+            }, 100);
+        }
     }
 
     closeLoginModal() {
-        document.getElementById('loginModal').style.display = 'none';
-        document.getElementById('loginForm').reset();
+        const loginModal = document.getElementById('loginModal');
+        if (loginModal) {
+            loginModal.style.display = 'none';
+        }
     }
 
     openSignupModal() {
-        document.getElementById('signupModal').style.display = 'flex';
-        document.getElementById('signupName').focus();
+        const signupModal = document.getElementById('signupModal');
+        if (signupModal) {
+            signupModal.style.display = 'flex';
+            document.getElementById('signupForm').reset();
+            const strengthBar = document.querySelector('.password-strength');
+            if (strengthBar) {
+                strengthBar.className = 'password-strength';
+                const strengthText = strengthBar.querySelector('.strength-text');
+                if (strengthText) strengthText.textContent = 'Password strength';
+            }
+            setTimeout(() => {
+                const nameInput = document.getElementById('signupName');
+                if (nameInput) nameInput.focus();
+            }, 100);
+        }
     }
 
     closeSignupModal() {
-        document.getElementById('signupModal').style.display = 'none';
-        document.getElementById('signupForm').reset();
-        document.querySelector('.password-strength').className = 'password-strength';
+        const signupModal = document.getElementById('signupModal');
+        if (signupModal) {
+            signupModal.style.display = 'none';
+        }
     }
 
     showProfileModal() {
-        if (!this.isLoggedIn) return;
+        if (!this.isLoggedIn) {
+            this.showNotification('Please login to view profile', 'warning');
+            return;
+        }
         
         this.updateProfileModal();
         document.getElementById('profileModal').style.display = 'flex';
@@ -355,6 +466,24 @@ class AuthSystem {
         document.getElementById('profileModal').style.display = 'none';
     }
 
+    closeEditProfileModal() {
+        document.getElementById('editProfileModal').style.display = 'none';
+        document.getElementById('editProfileForm').reset();
+    }
+
+    closeManageContactsModal() {
+        document.getElementById('manageContactsModal').style.display = 'none';
+        document.getElementById('addContactForm').reset();
+    }
+
+    closeAllModals() {
+        this.closeLoginModal();
+        this.closeSignupModal();
+        this.closeProfileModal();
+        this.closeEditProfileModal();
+        this.closeManageContactsModal();
+    }
+
     updateProfileModal() {
         if (!this.currentUser) return;
 
@@ -362,6 +491,7 @@ class AuthSystem {
         document.getElementById('profileRole').textContent = this.currentUser.role.charAt(0).toUpperCase() + this.currentUser.role.slice(1);
         document.getElementById('profileEmail').textContent = this.currentUser.email;
         document.getElementById('profilePhone').textContent = this.currentUser.phone;
+        document.getElementById('profileCampusID').textContent = this.currentUser.campusId || 'Not assigned';
         
         const memberSince = new Date(this.currentUser.memberSince).toLocaleDateString('en-US', { 
             year: 'numeric', 
@@ -376,6 +506,207 @@ class AuthSystem {
             ? Math.round(this.currentUser.stats.totalResponseTime / this.currentUser.stats.sosCount)
             : 0;
         document.getElementById('responseTime').textContent = `${avgResponse}s`;
+
+        // Update avatar based on role
+        this.updateProfileAvatar(this.currentUser.role);
+        
+        // Load emergency contacts
+        this.loadEmergencyContacts(this.currentUser.emergencyContacts);
+    }
+
+    updateProfileAvatar(role) {
+        const avatar = document.getElementById('profileAvatar');
+        const icons = {
+            'student': 'fas fa-user-graduate',
+            'faculty': 'fas fa-chalkboard-teacher',
+            'staff': 'fas fa-briefcase',
+            'security': 'fas fa-shield-alt',
+            'admin': 'fas fa-crown'
+        };
+        
+        if (avatar) {
+            avatar.innerHTML = `<i class="${icons[role] || 'fas fa-user'}"></i>`;
+        }
+    }
+
+    loadEmergencyContacts(contacts) {
+        const contactsList = document.getElementById('emergencyContactsList');
+        if (!contactsList) return;
+        
+        if (!contacts || contacts.length === 0) {
+            contactsList.innerHTML = `
+                <div class="no-contacts">
+                    <i class="fas fa-address-book"></i>
+                    <p>No emergency contacts added</p>
+                    <small>Add contacts to be notified during emergencies</small>
+                </div>
+            `;
+            return;
+        }
+
+        contactsList.innerHTML = contacts.map(contact => `
+            <div class="contact-item">
+                <div class="contact-info">
+                    <strong>${contact.name}</strong>
+                    <span>${contact.phone}</span>
+                    <small>${contact.relationship}</small>
+                </div>
+                <button class="btn-remove-contact" data-contact-id="${contact._id || contact.name}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `).join('');
+
+        // Add remove contact event listeners
+        contactsList.querySelectorAll('.btn-remove-contact').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const contactId = e.target.closest('.btn-remove-contact').dataset.contactId;
+                this.removeEmergencyContact(contactId);
+            });
+        });
+    }
+
+    openEditProfileModal() {
+        if (!this.currentUser) return;
+        
+        document.getElementById('editName').value = this.currentUser.name;
+        document.getElementById('editPhone').value = this.currentUser.phone;
+        document.getElementById('editEmail').value = this.currentUser.email;
+        
+        document.getElementById('editProfileModal').style.display = 'flex';
+    }
+
+    async handleEditProfile(e) {
+        e.preventDefault();
+        
+        const name = document.getElementById('editName').value.trim();
+        const phone = document.getElementById('editPhone').value.trim();
+
+        if (!name || !phone) {
+            this.showNotification('Please fill all fields', 'warning');
+            return;
+        }
+
+        try {
+            this.currentUser.name = name;
+            this.currentUser.phone = phone;
+            this.updateSession();
+            
+            this.showNotification('Profile updated successfully!', 'success');
+            this.closeEditProfileModal();
+            this.updateProfileModal();
+            this.updateUI();
+        } catch (error) {
+            this.showNotification('Failed to update profile', 'error');
+        }
+    }
+
+    openManageContactsModal() {
+        this.loadCurrentContacts();
+        document.getElementById('manageContactsModal').style.display = 'flex';
+    }
+
+    loadCurrentContacts() {
+        if (!this.currentUser || !this.currentUser.emergencyContacts) return;
+        
+        const currentContactsList = document.getElementById('currentContactsList');
+        if (!currentContactsList) return;
+        
+        const contacts = this.currentUser.emergencyContacts;
+
+        if (contacts.length === 0) {
+            currentContactsList.innerHTML = '<p class="no-contacts">No contacts added yet</p>';
+            return;
+        }
+
+        currentContactsList.innerHTML = contacts.map(contact => `
+            <div class="managed-contact-item">
+                <div class="contact-details">
+                    <strong>${contact.name}</strong>
+                    <span>${contact.phone}</span>
+                    <small>${contact.relationship}</small>
+                </div>
+                <button class="btn-remove-managed-contact" data-contact-name="${contact.name}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        `).join('');
+
+        // Add remove event listeners
+        currentContactsList.querySelectorAll('.btn-remove-managed-contact').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const contactName = e.target.closest('.btn-remove-managed-contact').dataset.contactName;
+                this.removeEmergencyContact(contactName);
+            });
+        });
+    }
+
+    async handleAddContact(e) {
+        e.preventDefault();
+        
+        const name = document.getElementById('contactName').value.trim();
+        const phone = document.getElementById('contactPhone').value.trim();
+        const relationship = document.getElementById('contactRelationship').value;
+
+        if (!name || !phone || !relationship) {
+            this.showNotification('Please fill all fields', 'warning');
+            return;
+        }
+
+        try {
+            // Get current contacts
+            const currentContacts = this.currentUser.emergencyContacts || [];
+            
+            // Add new contact
+            const newContact = {
+                name,
+                phone,
+                relationship,
+                _id: `contact-${Date.now()}`
+            };
+            
+            const updatedContacts = [...currentContacts, newContact];
+            this.currentUser.emergencyContacts = updatedContacts;
+            this.updateSession();
+            
+            this.showNotification('Emergency contact added successfully!', 'success');
+            document.getElementById('addContactForm').reset();
+            this.updateProfileModal();
+            this.loadCurrentContacts();
+        } catch (error) {
+            this.showNotification('Failed to add contact', 'error');
+        }
+    }
+
+    async removeEmergencyContact(contactIdentifier) {
+        if (!confirm('Are you sure you want to remove this emergency contact?')) {
+            return;
+        }
+
+        try {
+            const currentContacts = this.currentUser.emergencyContacts || [];
+            const updatedContacts = currentContacts.filter(contact => 
+                contact._id !== contactIdentifier && contact.name !== contactIdentifier
+            );
+            
+            this.currentUser.emergencyContacts = updatedContacts;
+            this.updateSession();
+            
+            this.showNotification('Contact removed successfully', 'success');
+            this.updateProfileModal();
+            
+            // Reload contacts in manage modal if it's open
+            if (document.getElementById('manageContactsModal').style.display === 'flex') {
+                this.loadCurrentContacts();
+            }
+        } catch (error) {
+            this.showNotification('Failed to remove contact', 'error');
+        }
+    }
+
+    refreshProfileData() {
+        this.updateProfileModal();
+        this.showNotification('Profile data refreshed', 'info');
     }
 
     updateUI() {
@@ -393,9 +724,14 @@ class AuthSystem {
                         <i class="fas fa-user"></i>
                     </div>
                 `;
-                authButtons.parentNode.replaceChild(newUserMenu, authButtons);
+                if (authButtons) {
+                    authButtons.parentNode.replaceChild(newUserMenu, authButtons);
+                }
             } else {
-                userMenu.querySelector('.user-greeting').textContent = `Hello, ${this.currentUser.name.split(' ')[0]}`;
+                const greeting = userMenu.querySelector('.user-greeting');
+                if (greeting) {
+                    greeting.textContent = `Hello, ${this.currentUser.name.split(' ')[0]}`;
+                }
             }
             
             // Update feature accessibility based on role
@@ -409,11 +745,17 @@ class AuthSystem {
                     <button class="btn btn-outline" id="loginBtn">Log In</button>
                     <button class="btn btn-primary" id="signupBtn">Sign Up</button>
                 `;
-                userMenu.parentNode.replaceChild(newAuthButtons, userMenu);
+                if (userMenu) {
+                    userMenu.parentNode.replaceChild(newAuthButtons, userMenu);
+                }
                 
                 // Re-bind events for new buttons
-                document.getElementById('loginBtn').addEventListener('click', () => this.openLoginModal());
-                document.getElementById('signupBtn').addEventListener('click', () => this.openSignupModal());
+                setTimeout(() => {
+                    const loginBtn = document.getElementById('loginBtn');
+                    const signupBtn = document.getElementById('signupBtn');
+                    if (loginBtn) loginBtn.addEventListener('click', () => this.openLoginModal());
+                    if (signupBtn) signupBtn.addEventListener('click', () => this.openSignupModal());
+                }, 100);
             }
             
             // Reset feature accessibility
@@ -475,20 +817,8 @@ class AuthSystem {
         // Update user in users array
         const userIndex = this.users.findIndex(u => u.id === this.currentUser.id);
         if (userIndex !== -1) {
-            this.users[userIndex].stats = this.currentUser.stats;
+            this.users[userIndex] = { ...this.currentUser, password: this.users[userIndex].password };
             this.saveUsers();
-        }
-    }
-
-    editProfile() {
-        // Simple profile editing - in real app would open edit form
-        const newName = prompt('Enter new name:', this.currentUser.name);
-        if (newName && newName.trim()) {
-            this.currentUser.name = newName.trim();
-            this.updateSession();
-            this.updateUI();
-            this.updateProfileModal();
-            this.showNotification('Profile updated successfully!', 'success');
         }
     }
 
